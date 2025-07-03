@@ -1,55 +1,128 @@
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f5f5f5;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(to right, #f1f1f1, #e3f2fd);
     padding: 30px;
+    color: #333;
 }
 
 .container {
-    background: white;
+    background: #ffffff;
     padding: 30px;
-    max-width: 800px;
+    max-width: 850px;
     margin: auto;
-    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
 h1 {
     text-align: center;
+    color: #007bff;
+    font-size: 2em;
+    margin-bottom: 30px;
+}
+
+.auth-buttons {
+    text-align: right;
+    margin-bottom: 20px;
+}
+
+.auth-buttons a, .auth-buttons span {
+    font-size: 0.95rem;
+}
+
+.auth-buttons a {
+    padding: 8px 14px;
+    background-color: #007bff;
+    color: #fff;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+}
+
+.auth-buttons a:hover {
+    background-color: #0056b3;
 }
 
 form {
     display: flex;
     gap: 10px;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
     flex-wrap: wrap;
 }
 
 form input, form select, form button {
     padding: 10px;
-    flex: 1 1 150px;
+    flex: 1 1 180px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 0.95rem;
+}
+
+form button {
+    background-color: #28a745;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    flex: 1 1 120px;
+}
+
+form button:hover {
+    background-color: #218838;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
-}
-#balanceChart {
-    width: 200px !important;
-    height: 200px !important;
-    margin: 20px auto;
-    display: block;
+    margin-top: 15px;
+    background-color: #fafafa;
+    border-radius: 6px;
+    overflow: hidden;
 }
 
+table thead {
+    background-color: #007bff;
+    color: white;
+}
 
 table, th, td {
-    border: 1px solid #ccc;
+    border: 1px solid #dee2e6;
 }
 
 th, td {
-    padding: 10px;
+    padding: 12px;
     text-align: left;
+    font-size: 0.95rem;
 }
 
-.balance p {
-    margin: 5px 0;
+td form button {
+    padding: 6px 10px;
+    background-color: #dc3545;
+    border: none;
+    color: white;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+td form button:hover {
+    background-color: #c82333;
+}
+
+.balance {
+    display: flex;
+    justify-content: space-between;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 25px;
+    border: 1px solid #dee2e6;
+    font-size: 1.05rem;
+    font-weight: bold;
+}
+
+#balanceChart {
+    width: 250px !important;
+    height: 250px !important;
+    margin: 25px auto;
+    display: block;
 }
