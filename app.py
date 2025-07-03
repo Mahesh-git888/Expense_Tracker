@@ -40,9 +40,14 @@ login_manager.login_view = "google.login"
 google_bp = make_google_blueprint(
     client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
     client_secret=os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
-    redirect_url="/google_login",
-    scope=["profile", "email"]
+    redirect_url="/login/google/authorized",
+    scope=[
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile"
+    ]
 )
+
 app.register_blueprint(google_bp, url_prefix="/login")
 
 @login_manager.user_loader
