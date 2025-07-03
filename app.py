@@ -1,8 +1,6 @@
 import os
 
-app.secret_key = os.getenv("FLASK_SECRET_KEY")
-app.config["GOOGLE_OAUTH_CLIENT_ID"] = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
-app.config["GOOGLE_OAUTH_CLIENT_SECRET"] = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+
 
 
 
@@ -12,6 +10,9 @@ from datetime import datetime
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///expenses.db'
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+app.config["GOOGLE_OAUTH_CLIENT_ID"] = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
+app.config["GOOGLE_OAUTH_CLIENT_SECRET"] = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
 db = SQLAlchemy(app)
 
 class Transaction(db.Model):
