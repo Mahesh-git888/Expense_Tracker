@@ -5,41 +5,41 @@ from flask_dance.contrib.google import make_google_blueprint, google
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from datetime import datetime
 
-# Load environment variables (only works locally)
+# Load environment variables (for local dev)
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except:
     pass
 
-# Relax token scope requirement for Google OAuth
+# Relax token scope validation
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
-# Initialize Flask App
+# Initialize Flask app
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback_secret")  # Fallback helps avoid crash
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback_secret")
 
-# SQLite path to /tmp to allow write access on Render
+# SQLite DB path (Render allows write access in /tmp)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/expenses.db'
 
-# Google OAuth client info from environment
+# Google OAuth setup
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
 
 if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
-    raise ValueError("Missing Google OAuth credentials in environment variables")
+    raise ValueError("Missing Google OAuth credentials")
 
 app.config["GOOGLE_OAUTH_CLIENT_ID"] = GOOGLE_CLIENT_ID
 app.config["GOOGLE_OAUTH_CLIENT_SECRET"] = GOOGLE_CLIENT_SECRET
 
-# Initialize DB
+# Init DB
 db = SQLAlchemy(app)
 
-# ---- Models ---- #
+# ---------- Models ---------- #
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Float, nullable=False)
-    type = db.Column(db.String(10), nullable=False)  # 'income' or 'expense'
+    type = db.Column(db.String(10), nullable=False)  # income / expense
     category = db.Column(db.String(50), nullable=False)
     description = db.Column(db.String(200))
     date = db.Column(db.DateTime, default=datetime.utcnow)
@@ -52,7 +52,7 @@ class User(UserMixin, db.Model):
 with app.app_context():
     db.create_all()
 
-# ---- Google OAuth ---- #
+# ---------- Google Login Setup ---------- #
 login_manager = LoginManager(app)
 login_manager.login_view = "google.login"
 
@@ -72,14 +72,15 @@ app.register_blueprint(google_bp, url_prefix="/login")
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-@app.route("/google_login")
-def google_login():
+# ---------- Google Auth Callback ---------- #
+@app.route("/login/google/authorized")
+def google_authorized():
     if not google.authorized:
         return redirect(url_for("google.login"))
 
     resp = google.get("/oauth2/v2/userinfo")
     if not resp.ok:
-        return f"Google login failed: {resp.text}", 500
+        return f"Failed to fetch user info: {resp.text}", 500
 
     info = resp.json()
     user = User.query.filter_by(google_id=info["id"]).first()
@@ -97,20 +98,20 @@ def logout():
     logout_user()
     return redirect(url_for("index"))
 
-# ---- Public route ---- #
+# ---------- Public Landing ---------- #
 @app.route("/")
 def index():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard"))
-    return "Welcome to the Expense Tracker! Please <a href='/google_login'>Login with Google</a>"
+    return "Welcome to the Expense Tracker! Please <a href='/login/google'>Login with Google</a>"
 
-# ---- Protected Route ---- #
+# ---------- Dashboard ---------- #
 @app.route("/dashboard")
 @login_required
 def dashboard():
     filter_type = request.args.get('type')
     filter_category = request.args.get('category')
-    filter_month = request.args.get('month')  # format: YYYY-MM
+    filter_month = request.args.get('month')  # Format: YYYY-MM
 
     transactions = Transaction.query
 
@@ -136,6 +137,7 @@ def dashboard():
         filter_type=filter_type, filter_category=filter_category, filter_month=filter_month
     )
 
+# ---------- Add Transaction ---------- #
 @app.route('/add', methods=['POST'])
 @login_required
 def add_transaction():
@@ -148,6 +150,7 @@ def add_transaction():
     db.session.commit()
     return redirect(url_for('dashboard'))
 
+# ---------- Delete Transaction ---------- #
 @app.route('/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_transaction(id):
@@ -156,6 +159,6 @@ def delete_transaction(id):
     db.session.commit()
     return redirect(url_for('dashboard'))
 
-# ---- App Runner ---- #
+# ---------- Run App ---------- #
 if __name__ == '__main__':
     app.run(debug=True)
