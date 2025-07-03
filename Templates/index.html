@@ -1,161 +1,81 @@
-import os
-from flask import Flask, request, render_template, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
-from flask_dance.contrib.google import make_google_blueprint, google
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
-from datetime import datetime
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        #balanceChart {
+            width: 300px !important;
+            height: 300px !important;
+            margin: 20px auto;
+            display: block;
+        }
+        .auth-buttons {
+            text-align: right;
+            margin-bottom: 15px;
+        }
+        .auth-buttons a {
+            padding: 5px 10px;
+            text-decoration: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💸 Personal Expense Tracker</h1>
 
-# Load environment variables (only works locally)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except:
-    pass
+        <!-- Login/Logout -->
+        <div class="auth-buttons">
+            {% if current_user.is_authenticated %}
+                <span>Logged in as: {{ current_user.email }}</span>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+                <a href="{{ url_for('google.login') }}">Login with Google</a>
+            {% endif %}
+        </div>
 
-# Relax token scope requirement for Google OAuth
-os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
+        <!-- Balance Summary -->
+        <div class="balance">
+            <p><strong>Income:</strong> ₹{{ income }}</p>
+            <p><strong>Expense:</strong> ₹{{ expense }}</p>
+            <p><strong>Balance:</strong> ₹{{ balance }}</p>
+        </div>
 
-# Initialize Flask App
-app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback_secret")  # Fallback helps avoid crash
+        <!-- Pie Chart -->
+        <canvas id="balanceChart"></canvas>
 
-# SQLite path to /tmp to allow write access on Render
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/expenses.db'
+        <!-- Filter Form -->
+        <form method="GET" class="form">
+            <select name="type">
+@@ -27,7 +61,7 @@
+            <button type="submit">Filter</button>
+        </form>
 
-# Google OAuth client info from environment
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+        <!-- Transaction Form -->
+        <!-- Add Transaction Form -->
+        <form action="/add" method="POST" class="form">
+            <input type="number" step="0.01" name="amount" placeholder="Amount" required>
+            <select name="type" required>
+@@ -39,9 +73,6 @@
+            <button type="submit">Add Transaction</button>
+        </form>
 
-if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
-    raise ValueError("Missing Google OAuth credentials in environment variables")
+        <!-- Pie Chart --><canvas id="balanceChart"></canvas>
 
-app.config["GOOGLE_OAUTH_CLIENT_ID"] = GOOGLE_CLIENT_ID
-app.config["GOOGLE_OAUTH_CLIENT_SECRET"] = GOOGLE_CLIENT_SECRET
 
-# Initialize DB
-db = SQLAlchemy(app)
+        <!-- Transaction Table -->
+        <table>
+            <thead>
+@@ -73,7 +104,7 @@
+        </table>
+    </div>
 
-# ---- Models ---- #
-class Transaction(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    amount = db.Column(db.Float, nullable=False)
-    type = db.Column(db.String(10), nullable=False)  # 'income' or 'expense'
-    category = db.Column(db.String(50), nullable=False)
-    description = db.Column(db.String(200))
-    date = db.Column(db.DateTime, default=datetime.utcnow)
-
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    google_id = db.Column(db.String(100), unique=True)
-    email = db.Column(db.String(150), unique=True)
-
-with app.app_context():
-    db.create_all()
-
-# ---- Google OAuth ---- #
-login_manager = LoginManager(app)
-login_manager.login_view = "google.login"
-
-google_bp = make_google_blueprint(
-    client_id=GOOGLE_CLIENT_ID,
-    client_secret=GOOGLE_CLIENT_SECRET,
-    redirect_url="/login/google/authorized",
-    scope=[
-        "openid",
-        "https://www.googleapis.com/auth/userinfo.email",
-        "https://www.googleapis.com/auth/userinfo.profile"
-    ]
-)
-app.register_blueprint(google_bp, url_prefix="/login")
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-@app.route("/google_login")
-def google_login():
-    if not google.authorized:
-        return redirect(url_for("google.login"))
-
-    resp = google.get("/oauth2/v2/userinfo")
-    if not resp.ok:
-        return f"Google login failed: {resp.text}", 500
-
-    info = resp.json()
-    user = User.query.filter_by(google_id=info["id"]).first()
-    if not user:
-        user = User(google_id=info["id"], email=info["email"])
-        db.session.add(user)
-        db.session.commit()
-
-    login_user(user)
-    return redirect(url_for("dashboard"))
-
-@app.route("/logout")
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for("index"))
-
-# ---- Public route ---- #
-@app.route("/")
-def index():
-    if current_user.is_authenticated:
-        return redirect(url_for("dashboard"))
-    return "Welcome to the Expense Tracker! Please <a href='/google_login'>Login with Google</a>"
-
-# ---- Protected Route ---- #
-@app.route("/dashboard")
-@login_required
-def dashboard():
-    filter_type = request.args.get('type')
-    filter_category = request.args.get('category')
-    filter_month = request.args.get('month')  # format: YYYY-MM
-
-    transactions = Transaction.query
-
-    if filter_type:
-        transactions = transactions.filter_by(type=filter_type)
-    if filter_category:
-        transactions = transactions.filter_by(category=filter_category)
-    if filter_month:
-        year, month = map(int, filter_month.split('-'))
-        transactions = transactions.filter(
-            db.extract('year', Transaction.date) == year,
-            db.extract('month', Transaction.date) == month
-        )
-
-    transactions = transactions.order_by(Transaction.date.desc()).all()
-    income = sum(t.amount for t in transactions if t.type == 'income')
-    expense = sum(t.amount for t in transactions if t.type == 'expense')
-    balance = income - expense
-
-    return render_template('index.html',
-        transactions=transactions,
-        income=income, expense=expense, balance=balance,
-        filter_type=filter_type, filter_category=filter_category, filter_month=filter_month
-    )
-
-@app.route('/add', methods=['POST'])
-@login_required
-def add_transaction():
-    amount = float(request.form['amount'])
-    type_ = request.form['type']
-    category = request.form['category']
-    description = request.form['description']
-    new_trx = Transaction(amount=amount, type=type_, category=category, description=description)
-    db.session.add(new_trx)
-    db.session.commit()
-    return redirect(url_for('dashboard'))
-
-@app.route('/delete/<int:id>', methods=['POST'])
-@login_required
-def delete_transaction(id):
-    trx = Transaction.query.get_or_404(id)
-    db.session.delete(trx)
-    db.session.commit()
-    return redirect(url_for('dashboard'))
-
-# ---- App Runner ---- #
-if __name__ == '__main__':
-    app.run(debug=True)
+    <!-- Chart.js Pie Chart Script -->
+    <!-- Chart.js Pie Chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const ctx = document.getElementById('balanceChart').getContext('2d');
