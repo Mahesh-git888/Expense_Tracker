@@ -6,7 +6,11 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, curren
 from datetime import datetime
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
+
+# Allow flexible token scope validation
+os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///expenses.db'
