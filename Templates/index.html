@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>💸 Personal Expense Tracker</h1>
+
+        <div class="balance">
+            <p><strong>Income:</strong> ₹{{ income }}</p>
+            <p><strong>Expense:</strong> ₹{{ expense }}</p>
+            <p><strong>Balance:</strong> ₹{{ balance }}</p>
+        </div>
+
+        <!-- Filter Form -->
+        <form method="GET" class="form">
+            <select name="type">
+                <option value="">All Types</option>
+                <option value="income" {% if filter_type == 'income' %}selected{% endif %}>Income</option>
+                <option value="expense" {% if filter_type == 'expense' %}selected{% endif %}>Expense</option>
+            </select>
+
+            <input type="text" name="category" placeholder="Category" value="{{ filter_category or '' }}">
+            <input type="month" name="month" value="{{ filter_month or '' }}">
+            <button type="submit">Filter</button>
+        </form>
+
+        <!-- Transaction Form -->
+        <form action="/add" method="POST" class="form">
+            <input type="number" step="0.01" name="amount" placeholder="Amount" required>
+            <select name="type" required>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+            </select>
+            <input type="text" name="category" placeholder="Category" required>
+            <input type="text" name="description" placeholder="Description">
+            <button type="submit">Add Transaction</button>
+        </form>
+
+        <!-- Pie Chart --><canvas id="balanceChart"></canvas>
+
+
+        <!-- Transaction Table -->
+        <table>
+            <thead>
+                <tr>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Date</th>
+                    <th>Delete</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trx in transactions %}
+                <tr>
+                    <td>{{ trx.amount }}</td>
+                    <td>{{ trx.type }}</td>
+                    <td>{{ trx.category }}</td>
+                    <td>{{ trx.description }}</td>
+                    <td>{{ trx.date.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <form action="/delete/{{ trx.id }}" method="POST">
+                            <button type="submit">🗑</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Chart.js Pie Chart Script -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const ctx = document.getElementById('balanceChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['Income', 'Expense'],
+                datasets: [{
+                    label: 'Income vs Expense',
+                    data: [{{ income }}, {{ expense }}],
+                    backgroundColor: ['#28a745', '#dc3545'],
+                    borderColor: ['#28a745', '#dc3545'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: false
+            }
+        });
+    </script>
+</body>
+</html>
