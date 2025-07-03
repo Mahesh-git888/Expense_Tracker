@@ -2,7 +2,7 @@ import os
 from flask import Flask, request, render_template, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_dance.contrib.google import make_google_blueprint, google
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
+from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user  # removed login_required
 from datetime import datetime
 
 # Load environment variables (for local dev)
@@ -18,12 +18,8 @@ os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback_secret")
-# Ensure session cookies are secure for HTTPS (required on Render)
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-
-
-# SQLite DB path (Render allows write access in /tmp)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/expenses.db'
 
 # Google OAuth setup
@@ -97,7 +93,6 @@ def google_authorized():
     return redirect(url_for("dashboard"))
 
 @app.route("/logout")
-@login_required
 def logout():
     logout_user()
     return redirect(url_for("index"))
@@ -105,13 +100,12 @@ def logout():
 # ---------- Public Landing ---------- #
 @app.route("/")
 def index():
-    if current_user.is_authenticated:
-        return redirect(url_for("dashboard"))
-    return "Welcome to the Expense Tracker! Please <a href='/login/google'>Login with Google</a>"
+    # Bypass login for testing
+    return redirect(url_for("dashboard"))
 
-# ---------- Dashboard ---------- #
+# ---------- Dashboard (login bypassed) ---------- #
 @app.route("/dashboard")
-@login_required
+# @login_required  # Commented out for testing
 def dashboard():
     filter_type = request.args.get('type')
     filter_category = request.args.get('category')
@@ -141,9 +135,9 @@ def dashboard():
         filter_type=filter_type, filter_category=filter_category, filter_month=filter_month
     )
 
-# ---------- Add Transaction ---------- #
+# ---------- Add Transaction (login bypassed) ---------- #
 @app.route('/add', methods=['POST'])
-@login_required
+# @login_required
 def add_transaction():
     amount = float(request.form['amount'])
     type_ = request.form['type']
@@ -154,9 +148,9 @@ def add_transaction():
     db.session.commit()
     return redirect(url_for('dashboard'))
 
-# ---------- Delete Transaction ---------- #
+# ---------- Delete Transaction (login bypassed) ---------- #
 @app.route('/delete/<int:id>', methods=['POST'])
-@login_required
+# @login_required
 def delete_transaction(id):
     trx = Transaction.query.get_or_404(id)
     db.session.delete(trx)
