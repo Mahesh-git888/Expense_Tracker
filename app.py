@@ -1,20 +1,22 @@
 import os
-
-
-
-
-
 from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
+from flask_dance.contrib.google import make_google_blueprint, google
+from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///expenses.db'
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 app.config["GOOGLE_OAUTH_CLIENT_ID"] = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
 app.config["GOOGLE_OAUTH_CLIENT_SECRET"] = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+
 db = SQLAlchemy(app)
 
+# ---- Models ---- #
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Float, nullable=False)
@@ -23,10 +25,57 @@ class Transaction(db.Model):
     description = db.Column(db.String(200))
     date = db.Column(db.DateTime, default=datetime.utcnow)
 
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    google_id = db.Column(db.String(100), unique=True)
+    email = db.Column(db.String(150), unique=True)
+
 with app.app_context():
     db.create_all()
 
+# ---- Google Auth ---- #
+login_manager = LoginManager(app)
+login_manager.login_view = "google.login"
+
+google_bp = make_google_blueprint(
+    client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+    redirect_url="/google_login",
+    scope=["profile", "email"]
+)
+app.register_blueprint(google_bp, url_prefix="/login")
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@app.route("/google_login")
+def google_login():
+    if not google.authorized:
+        return redirect(url_for("google.login"))
+
+    resp = google.get("/oauth2/v2/userinfo")
+    assert resp.ok, resp.text
+    info = resp.json()
+
+    user = User.query.filter_by(google_id=info["id"]).first()
+    if not user:
+        user = User(google_id=info["id"], email=info["email"])
+        db.session.add(user)
+        db.session.commit()
+
+    login_user(user)
+    return redirect(url_for("index"))
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("index"))
+
+# ---- Routes ---- #
 @app.route('/')
+@login_required
 def index():
     filter_type = request.args.get('type')
     filter_category = request.args.get('category')
@@ -57,8 +106,8 @@ def index():
         filter_type=filter_type, filter_category=filter_category, filter_month=filter_month
     )
 
-
 @app.route('/add', methods=['POST'])
+@login_required
 def add_transaction():
     amount = float(request.form['amount'])
     type_ = request.form['type']
@@ -70,6 +119,7 @@ def add_transaction():
     return redirect(url_for('index'))
 
 @app.route('/delete/<int:id>', methods=['POST'])
+@login_required
 def delete_transaction(id):
     trx = Transaction.query.get_or_404(id)
     db.session.delete(trx)
