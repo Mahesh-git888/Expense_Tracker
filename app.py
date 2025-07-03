@@ -18,6 +18,10 @@ os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback_secret")
+# Ensure session cookies are secure for HTTPS (required on Render)
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 
 # SQLite DB path (Render allows write access in /tmp)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/expenses.db'
