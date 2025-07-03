@@ -3,16 +3,50 @@
 <head>
     <title>Expense Tracker</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        #balanceChart {
+            width: 300px !important;
+            height: 300px !important;
+            margin: 20px auto;
+            display: block;
+        }
+        .auth-buttons {
+            text-align: right;
+            margin-bottom: 15px;
+        }
+        .auth-buttons a {
+            padding: 5px 10px;
+            text-decoration: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            margin-left: 5px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>💸 Personal Expense Tracker</h1>
 
+        <!-- Login/Logout -->
+        <div class="auth-buttons">
+            {% if current_user.is_authenticated %}
+                <span>Logged in as: {{ current_user.email }}</span>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+                <a href="{{ url_for('google.login') }}">Login with Google</a>
+            {% endif %}
+        </div>
+
+        <!-- Balance Summary -->
         <div class="balance">
             <p><strong>Income:</strong> ₹{{ income }}</p>
             <p><strong>Expense:</strong> ₹{{ expense }}</p>
             <p><strong>Balance:</strong> ₹{{ balance }}</p>
         </div>
+
+        <!-- Pie Chart -->
+        <canvas id="balanceChart"></canvas>
 
         <!-- Filter Form -->
         <form method="GET" class="form">
@@ -27,7 +61,7 @@
             <button type="submit">Filter</button>
         </form>
 
-        <!-- Transaction Form -->
+        <!-- Add Transaction Form -->
         <form action="/add" method="POST" class="form">
             <input type="number" step="0.01" name="amount" placeholder="Amount" required>
             <select name="type" required>
@@ -38,9 +72,6 @@
             <input type="text" name="description" placeholder="Description">
             <button type="submit">Add Transaction</button>
         </form>
-
-        <!-- Pie Chart --><canvas id="balanceChart"></canvas>
-
 
         <!-- Transaction Table -->
         <table>
@@ -73,7 +104,7 @@
         </table>
     </div>
 
-    <!-- Chart.js Pie Chart Script -->
+    <!-- Chart.js Pie Chart -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const ctx = document.getElementById('balanceChart').getContext('2d');
